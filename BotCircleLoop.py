@@ -16,6 +16,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 
+FFMPEG_PATH = "ffmpeg"  # или укажи полный путь
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # 📌 Путь к файлу users.json внутри папки с ботом
 USERS_FILE = os.path.join(BASE_DIR, "users.json")
@@ -151,7 +153,7 @@ async def handle_convert_video_to_sticker(call: CallbackQuery):
 
     # Конвертация видеокружка в стикер с наложением маски
     convert_command = [
-        "ffmpeg", "-y", "-i", input_path, "-i", mask_path,
+        FFMPEG_PATH, "-y", "-i", input_path, "-i", mask_path,
         "-filter_complex", "[0:v]scale=512:512,format=rgba[vid];[1:v]format=rgba[mask];[vid][mask]alphamerge",
         "-c:v", "libvpx-vp9", "-crf", "18", "-b:v", "500K", "-r", "30", "-an",
         output_path
@@ -238,12 +240,13 @@ async def handle_video_to_video_note(message: types.Message):
     await bot.download_file(file_info.file_path, input_path)
 
     convert_command = [
-        "ffmpeg", "-y", "-i", input_path,
-        "-vf", r"crop=min(in_w\,in_h):min(in_w\,in_h),scale=240:240",
-        "-c:v", "libx264", "-preset", "slow", "-crf", "18", "-r", "30",
-        "-c:a", "aac", "-b:a", "128k",
+        FFMPEG_PATH, "-y", "-i", input_path,
+        "-vf", "crop=min(in_w\,in_h):min(in_w\,in_h),scale=512:512",
+        "-c:v", "libx264", "-preset", "veryslow", "-crf", "15", "-b:v", "800K",
+        "-r", "30", "-c:a", "aac", "-b:a", "192k",
         output_path
     ]
+
 
     subprocess.run(convert_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     
@@ -481,7 +484,7 @@ async def process_video_note(message: types.Message, file_id: str = None, user_i
         create_circle_mask(mask_path)
 
     convert_command = [
-        "ffmpeg", "-y", "-i", input_path, "-i", mask_path,
+        FFMPEG_PATH, "-y", "-i", input_path, "-i", mask_path,
         "-filter_complex", "[0:v]scale=512:512,format=rgba[vid];[1:v]format=rgba[mask];[vid][mask]alphamerge",
         "-c:v", "libvpx-vp9", "-crf", "18", "-b:v", "500K", "-r", "30", "-an",
         output_path
