@@ -16,9 +16,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from database import init_db, add_user, get_users
-
 from dotenv import load_dotenv
-
+from database import create_table, add_user
 load_dotenv()  # Загружаем переменные из .env
 TOKEN = os.getenv("BOT_TOKEN")
 
@@ -98,14 +97,11 @@ async def handle_start_command(message: types.Message):
     user_username = f"@{message.from_user.username}" if message.from_user.username else "—"
 
     await init_db()  # Создаём таблицу, если её нет
-    users = await get_users()  # Загружаем всех пользователей
 
-    # ✅ Добавляем пользователя, если его нет, без сообщений
-    if not any(user[0] == user_id for user in users):
-        await add_user(user_id, user_name, user_username)
-        users = await get_users()  # Обновляем список после добавления
+    if not await user_exists(user_id):
+        await add_user(user_id, user_username, user_name)
 
-    logging.info(f"В базе уже {len(users)} пользователей")
+    logging.info(f"Пользователь {user_id} добавлен или уже существует.")
 
     """Отправляет меню выбора пользователю при старте бота."""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
