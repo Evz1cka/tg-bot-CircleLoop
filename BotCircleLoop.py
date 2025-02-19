@@ -15,6 +15,7 @@ import aiofiles
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
+from database import init_db, add_user, get_users
 
 FFMPEG_PATH = "ffmpeg"  # или укажи полный путь
 
@@ -86,18 +87,20 @@ def create_circle_mask(mask_path):
 
 @dp.message(Command("start"))
 async def handle_start_command(message: types.Message):
-    """Добавляет пользователя в базу, если он новый."""
+    """Добавляет пользователя в базу (тихо) и показывает меню"""
     user_id = message.from_user.id
-    user_name = message.from_user.full_name  # Получаем имя
-    user_username = f"@{message.from_user.username}" if message.from_user.username else "—"  # Telegram username
+    user_name = message.from_user.full_name
+    user_username = f"@{message.from_user.username}" if message.from_user.username else "—"
 
-    users = load_users()
+    await init_db()  # Создаём таблицу, если её нет
+    users = await get_users()  # Загружаем всех пользователей
 
-    # Проверяем, есть ли уже этот пользователь
-    if not any(user["id"] == user_id for user in users):
-        users.append({"id": user_id, "name": user_name, "username": user_username})
-        save_users(users)
-        logging.info(f"Новый пользователь: {user_id} ({user_name}, {user_username})")
+    # ✅ Добавляем пользователя, если его нет, без сообщений
+    if not any(user[0] == user_id for user in users):
+        await add_user(user_id, user_name, user_username)
+        users = await get_users()  # Обновляем список после добавления
+
+    logging.info(f"В базе уже {len(users)} пользователей")
 
     """Отправляет меню выбора пользователю при старте бота."""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -241,7 +244,7 @@ async def handle_video_to_video_note(message: types.Message):
 
     convert_command = [
         FFMPEG_PATH, "-y", "-i", input_path,
-        "-vf", "crop=min(in_w\,in_h):min(in_w\,in_h),scale=512:512",
+        "-vf", "crop=min(in_w\\,in_h):min(in_w\\,in_h),scale=512:512",
         "-c:v", "libx264", "-preset", "veryslow", "-crf", "15", "-b:v", "800K",
         "-r", "30", "-c:a", "aac", "-b:a", "192k",
         output_path
